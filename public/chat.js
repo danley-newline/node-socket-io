@@ -7,6 +7,7 @@ while (!pseudo) {
 //EVENTS
 
 socket.emit("pseudo", pseudo);
+socket.emit("oldWhispers", pseudo);
 document.title = pseudo + " - " + document.title;
 
 document.getElementById("chatForm").addEventListener("submit", (e) => {
@@ -14,12 +15,20 @@ document.getElementById("chatForm").addEventListener("submit", (e) => {
   const textInput = document.getElementById("msgInput").value;
   document.getElementById("msgInput").value = "";
 
+  const receiver = document.getElementById("receiverInput").value;
+  document.getElementById("receiverInput").value = "all";
+
   if (textInput.length > 0) {
-    socket.emit("newMessage", textInput);
-    creatElementFunction("newMessageMe", textInput);
+    socket.emit("newMessage", textInput, receiver);
+    if (receiver == "all") {
+      creatElementFunction("newMessageMe", textInput);
+    } 
   } else {
     return;
   }
+
+
+
 });
 
 
@@ -27,10 +36,21 @@ socket.on("newUser", (pseudo) => {
   creatElementFunction("newUser", pseudo);
 });
 
+
+socket.on("newUserInDb", (pseudo) => {
+  newOptions = document.createElement("option");
+  newOptions.textContent = pseudo;
+  newOptions.value = pseudo;
+  document.getElementById("receiverInput").append(newOptions); 
+})
+
 socket.on("newMessageAll", (content) => {
     creatElementFunction("newMessageAll", content);
 });
 
+socket.on("newChannel", (channel) => {
+  createChannel(channel);
+})
 
 socket.on("oldMessages", (messages) => {
     messages.forEach(message => {
@@ -42,6 +62,12 @@ socket.on("oldMessages", (messages) => {
     });
 });
 
+socket.on("oldWhispers", (messages) => {
+  messages.forEach(message => {
+    creatElementFunction('oldWhispers', message);
+  })
+})
+
 socket.on("writting", (pseudo) => {
     document.getElementById("isWritting").textContent = pseudo + " est entrain d'ecrire";
 });
@@ -51,6 +77,11 @@ socket.on("notWritting", () => {
     document.getElementById("isWritting").textContent = "";
 
 });
+
+socket.on("whisper", (content) => {
+  creatElementFunction('whisper', content);
+
+}) 
 
 socket.on("quitUser", (pseudo) => {
   creatElementFunction("quitUser", pseudo);
@@ -68,6 +99,23 @@ function writting(){
 
 function notWritting(){
     socket.emit("notWritting");
+}
+
+function createChannel(newChannel){
+  const newChannelItem = document.createElement('li');
+  newChannelItem.classList.add("elementList");
+  newChannelItem.id = newChannel;
+  newChannelItem.textContent = newChannel;
+  newChannelItem.setAttribute('onclick', "_joinRoom('"+ newChannel + "')");
+  document.getElementById("roomList").insertBefore(newChannelItem, document.getElementById("createNewRoom"));
+}
+
+function _joinRoom(channel){
+  document.getElementById("msgContainer").innerHTML = "";
+  socket.emit("changeChannel", channel);
+}
+function _createRoom(){
+
 }
 
 function creatElementFunction(element, content) {
@@ -99,6 +147,18 @@ function creatElementFunction(element, content) {
         newElement.innerHTML = content.sender + ": " + content.content;
         document.getElementById("msgContainer").appendChild(newElement);
         break;
+    case 'whisper':
+        newElement.classList.add(element, "message");
+        newElement.innerHTML = content.sender + ": vous a chuchoté: " + content.message;
+        document.getElementById("msgContainer").appendChild(newElement);
+      break;
+    
+    case "oldWhispers" : 
+        newElement.classList.add(element, "message");
+        newElement.innerHTML = content.sender + " vous a chuchoté: " + content.content;
+        document.getElementById("msgContainer").appendChild(newElement);
+        break;
+
 
     case "quitUser":
         newElement.classList.add(element, "message");
